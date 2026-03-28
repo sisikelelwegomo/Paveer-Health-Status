@@ -6,6 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "monitor": "node scripts/monitor.mjs",
+    "simulate:down": "node scripts/simulate-down.mjs",
+    "simulate:recover": "node scripts/simulate-recover.mjs",
     "lint": "eslint"
   },
   "dependencies": {
