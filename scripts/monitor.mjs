@@ -2,6 +2,7 @@ import nextEnv from "@next/env";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import crypto from "node:crypto";
 
 const { loadEnvConfig } = nextEnv;
 
@@ -18,6 +19,7 @@ function requireEnv(name) {
 
 const stateDir = path.join(projectDir, ".monitor");
 const stateFile = path.join(stateDir, "state.json");
+const incidentsFile = path.join(stateDir, "incidents.json");
 
 const FAILURES_TO_DOWN = 3;
 const SUCCESSES_TO_RECOVER = 3;
@@ -35,6 +37,7 @@ async function readState() {
       consecutiveSuccesses: 0,
       lastKnownState: "unknown",
       activeIncidentId: null,
+      activeLocalIncidentId: null,
       lastCheckAt: null,
     };
   }
@@ -43,6 +46,74 @@ async function readState() {
 async function writeState(state) {
   await mkdir(stateDir, { recursive: true });
   await writeFile(stateFile, JSON.stringify(state, null, 2) + "\n", "utf8");
+}
+
+async function readIncidentLog() {
+  try {
+    const raw = await readFile(incidentsFile, "utf8");
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeIncidentLog(incidents) {
+  await mkdir(stateDir, { recursive: true });
+  await writeFile(incidentsFile, JSON.stringify(incidents, null, 2) + "\n", "utf8");
+}
+
+async function logIncidentStart({ targetUrl, detectedAtIso, cause, betterstackIncidentId }) {
+  const incidents = await readIncidentLog();
+  const id = crypto.randomUUID();
+  incidents.push({
+    id,
+    monitoredUrl: targetUrl,
+    status: "down",
+    name: `${targetUrl} is down`,
+    cause,
+    startTime: detectedAtIso,
+    endTime: null,
+    resolutionSteps: null,
+    emails: {
+      downSentAt: null,
+      recoveredSentAt: null,
+    },
+    betterstackIncidentId: betterstackIncidentId ?? null,
+  });
+  await writeIncidentLog(incidents);
+  return id;
+}
+
+async function logIncidentResolved({ localIncidentId, detectedAtIso, resolutionSteps }) {
+  const incidents = await readIncidentLog();
+  const idx = incidents.findIndex((i) => i.id === localIncidentId);
+  if (idx === -1) return;
+  incidents[idx] = {
+    ...incidents[idx],
+    status: "recovered",
+    endTime: detectedAtIso,
+    resolutionSteps: resolutionSteps ?? incidents[idx].resolutionSteps ?? "Recovered automatically.",
+  };
+  await writeIncidentLog(incidents);
+}
+
+async function logEmailSent({ localIncidentId, kind, sentAtIso }) {
+  const incidents = await readIncidentLog();
+  const idx = incidents.findIndex((i) => i.id === localIncidentId);
+  if (idx === -1) return;
+  incidents[idx] = {
+    ...incidents[idx],
+    emails: {
+      ...(incidents[idx].emails ?? {}),
+      downSentAt:
+        kind === "down" ? sentAtIso : (incidents[idx].emails?.downSentAt ?? null),
+      recoveredSentAt:
+        kind === "recovered" ? sentAtIso : (incidents[idx].emails?.recoveredSentAt ?? null),
+    },
+  };
+  await writeIncidentLog(incidents);
 }
 
 async function checkUrl(url) {
@@ -233,7 +304,15 @@ async function main() {
   if (transitionedDown) {
     const incidentId = await createIncident({ targetUrl, detectedAtIso, cause });
     state.activeIncidentId = incidentId;
+    const localIncidentId = await logIncidentStart({
+      targetUrl,
+      detectedAtIso,
+      cause,
+      betterstackIncidentId: incidentId,
+    });
+    state.activeLocalIncidentId = localIncidentId;
     await sendEmail({ status: "down", targetUrl, incidentId, detectedAtIso });
+    await logEmailSent({ localIncidentId, kind: "down", sentAtIso: detectedAtIso });
   }
 
   if (transitionedUp) {
@@ -242,7 +321,17 @@ async function main() {
       await resolveIncident(incidentId);
     }
     await sendEmail({ status: "recovered", targetUrl, incidentId, detectedAtIso });
+    const localIncidentId = state.activeLocalIncidentId ?? null;
+    if (localIncidentId) {
+      await logEmailSent({ localIncidentId, kind: "recovered", sentAtIso: detectedAtIso });
+      await logIncidentResolved({
+        localIncidentId,
+        detectedAtIso,
+        resolutionSteps: `Recovered after ${state.consecutiveSuccesses} consecutive successful checks.`,
+      });
+    }
     state.activeIncidentId = null;
+    state.activeLocalIncidentId = null;
   }
 
   state.lastKnownState = newState;
