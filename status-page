@@ -1,0 +1,97 @@
+Forward Deployment Task: Build a Status Page
+
+Objective:
+Design and deploy a production-ready status page for a website or application that monitors uptime, logs incidents, and notifies users of outages in real time.
+
+Task Overview:
+Many Generative AI companies prioritize minimizing downtime. Your task is to build a system that reflects this by providing visibility into system health and reliability.
+
+We like Next.js or python as a tech stack, but its all up too you. Please include in your email attachment, your github, personal projects, and this projects public github url.
+
+Requirements:
+
+1. Status Page
+
+* Host your status page at any domain
+* It should display:
+
+  * Current system status (e.g. Operational, Degraded, Down)
+  * Historical incidents (past 24 hours, you can be creative)
+  * Timestamps for all events
+  * Brief descriptions of issues
+* The interface should be clean and easy to understand
+
+1. Integration
+
+* Your status page should monitor:
+
+  * Your personal website, or
+  * [https://paveer.com](https://paveer.com), or
+  * Any project of your choice
+* You must use incident.io for incident tracking and management
+
+3. GitHub Repository
+
+* Create a public GitHub repository
+* Include:
+
+  * All source code
+  * Setup instructions (README)
+  * Optional: architecture or system design explanation
+
+4. Testing and Incident Logging
+
+* Simulate real failures (e.g. server downtime, API errors)
+* Log incidents with:
+
+  * Start time
+  * End time
+  * Cause (brief explanation)
+  * Resolution steps
+* Demonstrate that your system can detect and record issues properly
+
+5. Email Notifications
+
+* Set up automated email alerts using a mailing service provider
+* Emails must be sent when:
+
+  * The site goes down
+  * The site recovers
+* Include:
+
+  * Timestamp of when the email was sent
+  * Status change (DOWN or RECOVERED)
+
+6. Deployment
+
+* Deploy your system using a hosting provider
+* Cloudflare is recommended, but any provider is acceptable
+* Ensure your status page is publicly accessible and stable
+
+Deliverables:
+
+* A live status page URL (status.username.com)
+* A public GitHub repository
+* Evidence of testing and incident logging
+* Email notification examples with timestamps
+
+Evaluation Criteria:
+
+* Functionality: accurate monitoring and status reporting
+* Testing: realistic failure scenarios and clear logs
+* Notifications: correct and timely email alerts
+* Design: clarity and usability of the status page
+* Deployment: reliability and accessibility of the live system
+
+Summary:
+
+You are building a real-world system that monitors uptime, logs incidents, and communicates failures clearly. The focus is on reliability, visibility, and practical deployment.
+
+https://status.cursor.com
+https://developer.apple.com/system-status
+https://status.claude.com
+
+https://incident.io
+https://incident.io/guide
+
+https://paveer.com
