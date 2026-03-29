@@ -9,6 +9,11 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  const [incidentQuery, setIncidentQuery] = useState("");
+  const [incidentStatus, setIncidentStatus] = useState<"all" | "open" | "resolved">("all");
+  const [incidentSort, setIncidentSort] = useState<"newest" | "oldest" | "severity" | "duration">("newest");
+  const [incidentDay, setIncidentDay] = useState<string | null>(null);
+
   const fetchStatus = useCallback(async () => {
     try {
       const res = await fetch("/api/status", { cache: "no-store" });
@@ -58,6 +63,59 @@ export default function Home() {
   const p50Latency =
     data?.stats?.p50LatencyMs != null ? `${Math.round(data.stats.p50LatencyMs)} ms` : "—";
   const recentChecks = data?.recentChecks ?? [];
+
+  const displayedIncidents = useMemo(() => {
+    const severityRank = (s: Incident["severity"]) => (s === "critical" ? 3 : s === "major" ? 2 : 1);
+    const dayOf = (iso: string) => {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return "";
+      return d.toISOString().slice(0, 10);
+    };
+    const durationMs = (i: Incident) => {
+      const start = new Date(i.createdAt).getTime();
+      const end = new Date(i.resolvedAt ?? new Date().toISOString()).getTime();
+      if (!Number.isFinite(start) || !Number.isFinite(end)) return 0;
+      return Math.max(0, end - start);
+    };
+
+    const q = incidentQuery.trim().toLowerCase();
+
+    const filtered = incidents.filter((i) => {
+      if (incidentStatus !== "all" && i.status !== incidentStatus) return false;
+      if (incidentDay && dayOf(i.createdAt) !== incidentDay) return false;
+      if (!q) return true;
+      const hay = [i.title, i.summary, i.cause, i.resolution].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+
+    const sorted = [...filtered].sort((a, b) => {
+      if (incidentSort === "oldest") return a.createdAt.localeCompare(b.createdAt);
+      if (incidentSort === "severity") return severityRank(b.severity) - severityRank(a.severity);
+      if (incidentSort === "duration") return durationMs(b) - durationMs(a);
+      return b.createdAt.localeCompare(a.createdAt);
+    });
+
+    return sorted;
+  }, [incidents, incidentDay, incidentQuery, incidentSort, incidentStatus]);
+
+  const uptimeBar = useMemo(() => {
+    const dayOf = (iso: string) => {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return null;
+      return d.toISOString().slice(0, 10);
+    };
+
+    return {
+      bars: [...recentChecks].slice(0, 90).reverse(),
+      onSelect: (iso: string) => {
+        const day = dayOf(iso);
+        if (!day) return;
+        setIncidentDay(day);
+        const el = document.getElementById("incidents");
+        el?.scrollIntoView({ behavior: "smooth", block: "start" });
+      },
+    };
+  }, [recentChecks]);
 
   const downtime = useMemo(() => {
     if (status !== "down") return null;
@@ -170,36 +228,133 @@ export default function Home() {
           </section>
 
           <section className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur">
-            <div className="flex items-center justify-between gap-4 border-b border-white/10 px-6 py-5">
+            <div className="flex flex-col gap-3 border-b border-white/10 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-col gap-1">
-                <h2 className="text-base font-semibold tracking-tight text-zinc-100">
-                  Incident history
-                </h2>
+                <h2 className="text-base font-semibold tracking-tight text-zinc-100">Uptime</h2>
+                <p className="text-xs text-zinc-400">
+                  Uptime (24h): <span className="font-mono text-zinc-200">{uptime24h}</span> • p95: <span className="font-mono text-zinc-200">{p95Latency}</span> • p50: <span className="font-mono text-zinc-200">{p50Latency}</span>
+                </p>
+                <p className="text-xs text-zinc-500">Last {uptimeBar.bars.length} checks • click a bar to filter incidents by day</p>
+              </div>
+              <a href="#incidents" className="text-sm text-zinc-300 hover:text-zinc-100">
+                View incidents
+              </a>
+            </div>
+
+            <div className="px-6 py-6">
+              {loading ? (
+                <div className="text-sm text-zinc-400">Loading uptime…</div>
+              ) : uptimeBar.bars.length === 0 ? (
+                <div className="text-sm text-zinc-400">No check history yet.</div>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {uptimeBar.bars.map((check) => {
+                    const color =
+                      check.status === "operational"
+                        ? "bg-emerald-500"
+                        : check.status === "degraded"
+                          ? "bg-amber-500"
+                          : "bg-rose-500";
+
+                    const label = `${check.status.toUpperCase()} • ${formatTimestamp(check.at)}${
+                      check.latencyMs != null ? ` • ${Math.round(check.latencyMs)} ms` : ""
+                    }`.replace("$", "");
+
+                    return (
+                      <div key={check.at} className="group relative">
+                        <button
+                          type="button"
+                          onClick={() => uptimeBar.onSelect(check.at)}
+                          aria-label={label}
+                          className={`h-7 w-1.5 rounded-sm ${color} opacity-90 transition-[transform,opacity,width] duration-150 ease-out hover:w-2 hover:opacity-100 hover:scale-y-[1.15] focus:outline-none focus:ring-2 focus:ring-white/30`}
+                        />
+                        <div className="pointer-events-none absolute -top-2 left-1/2 z-20 hidden -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-xl border border-white/10 bg-black/80 px-3 py-2 text-xs text-zinc-100 shadow-xl backdrop-blur group-hover:block">
+                          <div className="font-medium">{check.status.toUpperCase()}</div>
+                          <div className="text-zinc-300">{formatTimestamp(check.at)}</div>
+                          <div className="text-zinc-300">
+                            {check.latencyMs != null ? `${Math.round(check.latencyMs)} ms` : "—"}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {incidentDay ? (
+                <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-zinc-300">
+                  <span className="rounded-full bg-white/5 px-3 py-1">
+                    Filtering incidents for <span className="font-mono">{incidentDay}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIncidentDay(null)}
+                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1 hover:bg-white/10"
+                  >
+                    Clear
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </section>
+
+          <section id="incidents" className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur">
+            <div className="flex flex-col gap-4 border-b border-white/10 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-1">
+                <h2 className="text-base font-semibold tracking-tight text-zinc-100">Incident history</h2>
                 <p className="text-xs text-zinc-400">Last 24 hours</p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setRefreshing(true);
-                  fetchStatus();
-                }}
-                disabled={loading || refreshing}
-                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-white/10 disabled:opacity-50"
-              >
-                {refreshing ? "Refreshing..." : "Refresh"}
-              </button>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <input
+                  value={incidentQuery}
+                  onChange={(e) => setIncidentQuery(e.target.value)}
+                  placeholder="Search incidents…"
+                  className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:ring-2 focus:ring-white/20 sm:w-56"
+                />
+
+                <select
+                  value={incidentStatus}
+                  onChange={(e) => setIncidentStatus(e.target.value as typeof incidentStatus)}
+                  className="h-10 rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-white/20"
+                >
+                  <option value="all">All</option>
+                  <option value="open">Open</option>
+                  <option value="resolved">Resolved</option>
+                </select>
+
+                <select
+                  value={incidentSort}
+                  onChange={(e) => setIncidentSort(e.target.value as typeof incidentSort)}
+                  className="h-10 rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-white/20"
+                >
+                  <option value="newest">Newest</option>
+                  <option value="oldest">Oldest</option>
+                  <option value="severity">Severity</option>
+                  <option value="duration">Duration</option>
+                </select>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRefreshing(true);
+                    fetchStatus();
+                  }}
+                  disabled={loading || refreshing}
+                  className="h-10 rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-medium text-zinc-200 hover:bg-white/10 disabled:opacity-50"
+                >
+                  {refreshing ? "Refreshing..." : "Refresh"}
+                </button>
+              </div>
             </div>
 
             {loading ? (
               <div className="px-6 py-10 text-sm text-zinc-400">Loading status…</div>
-            ) : incidents.length === 0 ? (
-              <div className="px-6 py-10 text-sm text-zinc-400">
-                No incidents reported in the last 24 hours.
-              </div>
+            ) : displayedIncidents.length === 0 ? (
+              <div className="px-6 py-10 text-sm text-zinc-400">No incidents match your filters.</div>
             ) : (
               <ul className="divide-y divide-white/10">
-                {incidents.map((incident) => (
+                {displayedIncidents.map((incident) => (
                   <IncidentRow key={incident.id} incident={incident} />
                 ))}
               </ul>

@@ -110,7 +110,7 @@ export async function GET() {
     })();
 
     const checkLog = await listMetadataCheckLog();
-    const recentChecks = checkLog.slice(0, 50);
+    const recentChecks = checkLog.slice(0, 90);
     const lastLatencyMs = recentChecks[0]?.latencyMs ?? null;
     const latencyValues = recentChecks
       .map((c) => c.latencyMs)
