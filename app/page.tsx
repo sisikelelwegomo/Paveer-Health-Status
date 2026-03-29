@@ -33,7 +33,7 @@ export default function Home() {
 
   const status = data?.status ?? "operational";
   const monitoredUrl = data?.monitoredUrl ?? "https://paveer.com";
-  const incidents = data?.incidents ?? [];
+  const incidents = useMemo(() => data?.incidents ?? [], [data?.incidents]);
 
   const statusLabel = useMemo(() => {
     if (status === "operational") return "Operational";
@@ -62,7 +62,7 @@ export default function Home() {
     data?.stats?.p95LatencyMs != null ? `${Math.round(data.stats.p95LatencyMs)} ms` : "—";
   const p50Latency =
     data?.stats?.p50LatencyMs != null ? `${Math.round(data.stats.p50LatencyMs)} ms` : "—";
-  const recentChecks = data?.recentChecks ?? [];
+  const recentChecks = useMemo(() => data?.recentChecks ?? [], [data?.recentChecks]);
 
   const displayedIncidents = useMemo(() => {
     const severityRank = (s: Incident["severity"]) => (s === "critical" ? 3 : s === "major" ? 2 : 1);
@@ -162,6 +162,9 @@ export default function Home() {
             >
               Monitored Site
             </a>
+            <Link href="/incidents" className="hover:text-zinc-100">
+              Incidents
+            </Link>
             <a href="/api/status" className="hover:text-zinc-100">
               Status JSON
             </a>
@@ -419,12 +422,9 @@ export default function Home() {
 
         <footer className="mt-12 border-t border-white/10 pt-6 text-sm text-zinc-400">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <span>Auto-refreshes every 30 seconds.</span>
-            <span className="text-xs">
-              Tip: schedule GET{" "}
-              <span className="font-mono text-zinc-300">/api/monitor</span> for
-              continuous monitoring
-            </span>
+            <Link href="/incidents" className="hover:text-zinc-100">
+              ← Incident History
+            </Link>
           </div>
         </footer>
       </div>
