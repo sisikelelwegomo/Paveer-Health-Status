@@ -17,6 +17,7 @@ import {
   getMonitor,
   getMonitorMetadataValue,
   setMonitorMetadataValue,
+  appendMetadataCheckLogEntry,
   upsertMetadataIncidentLog,
 } from "@/lib/betterstack";
 import {
@@ -72,6 +73,18 @@ export async function runMonitorOnce(): Promise<MonitorRunResult> {
     const now = new Date();
     const nowIso = now.toISOString();
 
+    let measuredLatencyMs: number | null = null;
+    try {
+      const latencyStart = Date.now();
+      const res = await fetchWithTimeout(monitor.url ?? getTargetUrl(), 10_000);
+      const latencyEnd = Date.now();
+      if (res.ok) {
+        measuredLatencyMs = latencyEnd - latencyStart;
+      }
+    } catch {
+      measuredLatencyMs = null;
+    }
+
     if (!lastNotifiedStatus) {
       await setMonitorMetadataValue("status_page_last_notified_status", status);
       if (status === "down") {
@@ -95,6 +108,12 @@ export async function runMonitorOnce(): Promise<MonitorRunResult> {
 
       await setMonitorMetadataValue("status_page_last_notified_status", status);
     }
+
+    await appendMetadataCheckLogEntry({
+      at: nowIso,
+      status,
+      latencyMs: measuredLatencyMs,
+    });
 
     setMonitoredUrl(monitor.url ?? getTargetUrl());
     forceStatus(status);

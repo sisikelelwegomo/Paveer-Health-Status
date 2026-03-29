@@ -1,4 +1,4 @@
-import type { Incident } from "@/lib/types";
+import type { Incident, SystemStatus } from "@/lib/types";
 
 type BetterstackMonitor = {
   id: string;
@@ -230,6 +230,49 @@ export async function upsertMetadataIncidentLog(incident: Incident): Promise<voi
 
   await setMonitorMetadataValues(
     INCIDENT_LOG_KEY,
+    next.map((i) => JSON.stringify(i)),
+  );
+}
+
+type CheckLogEntry = {
+  at: string;
+  status: SystemStatus;
+  latencyMs: number | null;
+};
+
+const CHECK_LOG_KEY = "status_page_check_log";
+
+export async function listMetadataCheckLog(): Promise<CheckLogEntry[]> {
+  const values = await getMonitorMetadataValues(CHECK_LOG_KEY);
+  return values
+    .map((raw): CheckLogEntry | null => {
+      try {
+        const parsed = JSON.parse(raw) as CheckLogEntry;
+        if (!parsed?.at || !parsed?.status) return null;
+        return {
+          at: String(parsed.at),
+          status: parsed.status,
+          latencyMs:
+            parsed.latencyMs == null || Number.isNaN(Number(parsed.latencyMs))
+              ? null
+              : Number(parsed.latencyMs),
+        };
+      } catch {
+        return null;
+      }
+    })
+    .filter((x): x is CheckLogEntry => x !== null)
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+}
+
+export async function appendMetadataCheckLogEntry(entry: CheckLogEntry): Promise<void> {
+  const existing = await listMetadataCheckLog();
+  const next = [entry, ...existing]
+    .slice(0, 300)
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+
+  await setMonitorMetadataValues(
+    CHECK_LOG_KEY,
     next.map((i) => JSON.stringify(i)),
   );
 }

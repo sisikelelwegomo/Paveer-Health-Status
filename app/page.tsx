@@ -51,6 +51,13 @@ export default function Home() {
   const lastChecked = data?.lastCheckedAt ? formatTimestamp(data.lastCheckedAt) : "—";
   const lastChange = data?.lastStateChangeAt ? formatTimestamp(data.lastStateChangeAt) : "—";
   const latency = data?.lastLatencyMs != null ? `${data.lastLatencyMs} ms` : "—";
+  const uptime24h =
+    data?.stats?.uptime24hPercent != null ? `${data.stats.uptime24hPercent.toFixed(2)}%` : "—";
+  const p95Latency =
+    data?.stats?.p95LatencyMs != null ? `${Math.round(data.stats.p95LatencyMs)} ms` : "—";
+  const p50Latency =
+    data?.stats?.p50LatencyMs != null ? `${Math.round(data.stats.p50LatencyMs)} ms` : "—";
+  const recentChecks = data?.recentChecks ?? [];
 
   const downtime = useMemo(() => {
     if (status !== "down") return null;
@@ -147,7 +154,7 @@ export default function Home() {
         </header>
 
         <main className="mt-10 flex flex-col gap-10">
-          <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <section className="grid grid-cols-1 gap-4 sm:grid-cols-4">
             <StatCard
               title="Current status"
               value={statusLabel}
@@ -159,6 +166,7 @@ export default function Home() {
               value={`${incidents.length}`}
               detail={`Last change: ${lastChange}`}
             />
+            <StatCard title="Uptime (24h)" value={uptime24h} detail={`p95: ${p95Latency} • p50: ${p50Latency}`} />
           </section>
 
           <section className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur">
@@ -193,6 +201,61 @@ export default function Home() {
               <ul className="divide-y divide-white/10">
                 {incidents.map((incident) => (
                   <IncidentRow key={incident.id} incident={incident} />
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur">
+            <div className="flex items-center justify-between gap-4 border-b border-white/10 px-6 py-5">
+              <div className="flex flex-col gap-1">
+                <h2 className="text-base font-semibold tracking-tight text-zinc-100">
+                  Recent checks
+                </h2>
+                <p className="text-xs text-zinc-400">Last {recentChecks.length} runs</p>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="px-6 py-10 text-sm text-zinc-400">Loading checks…</div>
+            ) : recentChecks.length === 0 ? (
+              <div className="px-6 py-10 text-sm text-zinc-400">
+                No check history yet. Schedule <span className="font-mono text-zinc-300">/api/monitor</span>{" "}
+                with cron-job.org.
+              </div>
+            ) : (
+              <ul className="divide-y divide-white/10">
+                {recentChecks.map((check) => (
+                  <li key={check.at} className="px-6 py-4">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${
+                            check.status === "operational"
+                              ? "bg-emerald-500/10 text-emerald-300"
+                              : check.status === "degraded"
+                                ? "bg-amber-500/10 text-amber-300"
+                                : "bg-rose-500/10 text-rose-300"
+                          }`}
+                        >
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${
+                              check.status === "operational"
+                                ? "bg-emerald-400"
+                                : check.status === "degraded"
+                                  ? "bg-amber-400"
+                                  : "bg-rose-400"
+                            }`}
+                          />
+                          {check.status.toUpperCase()}
+                        </span>
+                        <span className="text-sm text-zinc-200">{formatTimestamp(check.at)}</span>
+                      </div>
+                      <div className="text-sm text-zinc-400">
+                        {check.latencyMs != null ? `${Math.round(check.latencyMs)} ms` : "—"}
+                      </div>
+                    </div>
+                  </li>
                 ))}
               </ul>
             )}

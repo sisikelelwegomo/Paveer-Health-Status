@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 function isAuthorized(secret: string | null): boolean {
   const expected = process.env.MONITOR_CRON_SECRET;
-  if (!expected) return true;
+  if (!expected) return process.env.NODE_ENV !== "production";
   return secret === expected;
 }
 

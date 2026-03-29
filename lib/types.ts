@@ -45,4 +45,16 @@ export type StatusResponse = {
   incidents: Incident[];
   activeLocalIncidentId: string | null;
   activeIncidentIoId: string | null;
+  recentChecks?: Array<{
+    at: string;
+    status: SystemStatus;
+    latencyMs: number | null;
+  }>;
+  stats?: {
+    uptime24hPercent: number | null;
+    p50LatencyMs: number | null;
+    p95LatencyMs: number | null;
+    checkCount: number;
+    windowHours: number;
+  };
 };
