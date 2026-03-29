@@ -13,6 +13,13 @@ import {
 import type { SystemStatus } from "@/lib/types";
 import { formatDuration, sendDownEmail, sendRecoveredEmail } from "@/lib/emailjs";
 import {
+  betterstackEnabled,
+  getMonitor,
+  getMonitorMetadataValue,
+  setMonitorMetadataValue,
+  upsertMetadataIncidentLog,
+} from "@/lib/betterstack";
+import {
   createIncidentIoIncident,
   editIncidentIoIncident,
   incidentIoEnabled,
@@ -50,6 +57,56 @@ async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Respons
 }
 
 export async function runMonitorOnce(): Promise<MonitorRunResult> {
+  if (betterstackEnabled()) {
+    const monitor = await getMonitor();
+    const status =
+      (monitor.status ?? "").toLowerCase() === "up"
+        ? "operational"
+        : (monitor.status ?? "").toLowerCase() === "down"
+          ? "down"
+          : "degraded";
+
+    const lastNotifiedStatus = await getMonitorMetadataValue("status_page_last_notified_status");
+    const lastDownAt = await getMonitorMetadataValue("status_page_last_down_at");
+
+    const now = new Date();
+    const nowIso = now.toISOString();
+
+    if (!lastNotifiedStatus) {
+      await setMonitorMetadataValue("status_page_last_notified_status", status);
+      if (status === "down") {
+        await setMonitorMetadataValue("status_page_last_down_at", nowIso);
+      }
+    } else if (lastNotifiedStatus !== status) {
+      await setMonitorMetadataValue("status_page_last_state_change_at", nowIso);
+      if (lastNotifiedStatus !== "down" && status === "down") {
+        await setMonitorMetadataValue("status_page_last_down_at", nowIso);
+        await sendDownEmail(monitor.url ?? getTargetUrl(), now);
+      }
+
+      if (lastNotifiedStatus === "down" && status !== "down") {
+        const start = lastDownAt ? new Date(lastDownAt) : null;
+        const downtimeDuration =
+          start && Number.isFinite(start.getTime()) ? formatDuration(start, now) : "Unknown";
+
+        await sendRecoveredEmail(monitor.url ?? getTargetUrl(), now, downtimeDuration);
+        await setMonitorMetadataValue("status_page_last_down_at", null);
+      }
+
+      await setMonitorMetadataValue("status_page_last_notified_status", status);
+    }
+
+    setMonitoredUrl(monitor.url ?? getTargetUrl());
+    forceStatus(status);
+
+    return {
+      ok: status !== "down",
+      status,
+      changed: lastNotifiedStatus != null && lastNotifiedStatus !== status,
+      message: `Betterstack monitor status: ${monitor.status ?? "unknown"}`,
+    };
+  }
+
   const targetUrl = getTargetUrl();
   setMonitoredUrl(targetUrl);
 
@@ -94,11 +151,18 @@ async function handleTransitions(
 
   if (previousStatus !== "down" && nextStatus === "down") {
     const localIncidentId = addIncident({
-      title: "Paveer.com outage",
+      title: "paveer.com outage",
       severity: "major",
       summary: "Automatic detection: repeated failed checks.",
     });
     setActiveLocalIncidentId(localIncidentId);
+
+    if (betterstackEnabled()) {
+      const incident = getState().incidents.find((i) => i.id === localIncidentId);
+      if (incident) {
+        await upsertMetadataIncidentLog(incident);
+      }
+    }
 
     if (incidentIoEnabled()) {
       const incidentIoId = await createIncidentIoIncident({
@@ -131,6 +195,14 @@ async function handleTransitions(
       resolveIncident(state.activeLocalIncidentId, {
         resolution: "Automatic recovery detected: checks succeeded again.",
       });
+
+      if (betterstackEnabled()) {
+        const updated = getState().incidents.find((i) => i.id === state.activeLocalIncidentId);
+        if (updated) {
+          await upsertMetadataIncidentLog(updated);
+        }
+      }
+
       setActiveLocalIncidentId(null);
     }
 
@@ -154,11 +226,18 @@ export async function simulateDown(): Promise<void> {
   forceStatus("down");
 
   const localIncidentId = addIncident({
-    title: "Paveer.com outage (simulated)",
+    title: "paveer.com outage (simulated)",
     severity: "major",
     summary: "Manual simulation triggered for testing.",
   });
   setActiveLocalIncidentId(localIncidentId);
+
+  if (betterstackEnabled()) {
+    const incident = getState().incidents.find((i) => i.id === localIncidentId);
+    if (incident) {
+      await upsertMetadataIncidentLog(incident);
+    }
+  }
 
   if (incidentIoEnabled()) {
     const incidentIoId = await createIncidentIoIncident({
@@ -194,6 +273,14 @@ export async function simulateRecover(): Promise<void> {
     resolveIncident(state.activeLocalIncidentId, {
       resolution: "Manual simulation: recovery triggered.",
     });
+
+    if (betterstackEnabled()) {
+      const updated = getState().incidents.find((i) => i.id === state.activeLocalIncidentId);
+      if (updated) {
+        await upsertMetadataIncidentLog(updated);
+      }
+    }
+
     setActiveLocalIncidentId(null);
   }
 
