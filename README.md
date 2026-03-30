@@ -2,7 +2,6 @@
 
 A production-ready status page that monitors uptime for **[paveer.com](https://paveer.com)**, logs incidents via Betterstack, and notifies users when the system goes down or recovers.
 
-**Live status page:** https://status.sisikelelwegomo.com *(fill in)*
 **Public repository:** https://github.com/sisikelelwegomo/Paveer-System-Health
 
 ---
