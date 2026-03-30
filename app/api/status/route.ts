@@ -92,10 +92,10 @@ export async function GET() {
     })();
 
     const checkLog = await listMetadataCheckLog();
-    const recentChecks = checkLog.slice(0, 90);
-    const lastLatencyMs = recentChecks[0]?.latencyMs ?? null;
-    const lastCheckedAt = monitor.lastCheckedAt ?? recentChecks[0]?.at ?? null;
-    const latencyValues = recentChecks
+    const lastCheckedAt = monitor.lastCheckedAt ?? checkLog[0]?.at ?? null;
+    const lastLatencyMs = checkLog[0]?.latencyMs ?? null;
+    const latencyValues = checkLog
+      .slice(0, 300)
       .map((c) => c.latencyMs)
       .filter((v): v is number => v != null && Number.isFinite(v))
       .sort((a, b) => a - b);
@@ -136,6 +136,30 @@ export async function GET() {
       return { hour, status, uptimePercent, totalChecks: total };
     });
 
+    const recentChecks = hours
+      .map((hour) => {
+        const entry = hourly.find((e) => e.hour === hour) ?? null;
+        const total = entry?.total ?? 0;
+        if (total <= 0) return null;
+
+        const down = entry?.down ?? 0;
+        const degraded = entry?.degraded ?? 0;
+        const latencyMs =
+          entry?.latencyCount && entry.latencyCount > 0
+            ? entry.latencySumMs / entry.latencyCount
+            : null;
+
+        const bucketStatus: SystemStatus =
+          down > 0 ? "down" : degraded > 0 ? "degraded" : "operational";
+
+        return {
+          at: hour,
+          status: bucketStatus,
+          latencyMs: latencyMs != null && Number.isFinite(latencyMs) ? latencyMs : null,
+        };
+      })
+      .filter((x): x is { at: string; status: SystemStatus; latencyMs: number | null } => x !== null);
+
     const uptime24hPercent = computeUptimePercentFromBuckets(
       hours.map((hour) => {
         const entry = hourly.find((e) => e.hour === hour) ?? null;
@@ -161,7 +185,10 @@ export async function GET() {
         uptime24hPercent: uptime24hPercentFallback,
         p50LatencyMs,
         p95LatencyMs,
-        checkCount: recentChecks.length,
+        checkCount: hours.reduce((sum, hour) => {
+          const entry = hourly.find((e) => e.hour === hour) ?? null;
+          return sum + (entry?.total ?? 0);
+        }, 0),
         windowHours: 24,
       },
     };

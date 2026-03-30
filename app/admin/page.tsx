@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -41,9 +42,21 @@ export default function AdminPage() {
 
       <div className="relative mx-auto w-full max-w-3xl px-6 py-12">
         <header className="flex items-center justify-between">
-          <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-3">
+            <div className="grid h-9 w-9 place-items-center border border-white/10 bg-white/5">
+              <Image
+                src="/vercel.png"
+                alt="Logo"
+                width={24}
+                height={24}
+                className="h-6 w-6 object-contain"
+                priority
+              />
+            </div>
+            <div className="flex flex-col gap-1">
             <h1 className="text-2xl font-semibold tracking-tight">Admin</h1>
             <p className="text-sm text-zinc-400">Simulate events and trigger checks.</p>
+            </div>
           </div>
           <Link
             href="/"
@@ -54,7 +67,7 @@ export default function AdminPage() {
         </header>
 
         <main className="mt-10 flex flex-col gap-6">
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+          <div className="rounded-none border border-white/10 bg-white/5 p-6 backdrop-blur">
             <h2 className="text-base font-semibold text-zinc-100">Actions</h2>
             <p className="mt-1 text-sm text-zinc-400">
               These actions update local state and trigger EmailJS notifications when configured.
@@ -65,7 +78,7 @@ export default function AdminPage() {
                 type="button"
                 onClick={() => run("run-check")}
                 disabled={busy !== null}
-                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-white/10 disabled:opacity-50"
+                className="rounded-none border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-white/10 disabled:opacity-50"
               >
                 {busy === "run-check" ? "Running…" : "Run check"}
               </button>
@@ -73,7 +86,7 @@ export default function AdminPage() {
                 type="button"
                 onClick={() => run("seed-examples")}
                 disabled={busy !== null}
-                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-white/10 disabled:opacity-50"
+                className="rounded-none border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-white/10 disabled:opacity-50"
               >
                 {busy === "seed-examples" ? "Seeding…" : "Seed examples"}
               </button>
@@ -81,7 +94,7 @@ export default function AdminPage() {
                 type="button"
                 onClick={() => run("simulate-down")}
                 disabled={busy !== null}
-                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-white/10 disabled:opacity-50"
+                className="rounded-none border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-white/10 disabled:opacity-50"
               >
                 {busy === "simulate-down" ? "Simulating…" : "Simulate DOWN"}
               </button>
@@ -89,16 +102,16 @@ export default function AdminPage() {
                 type="button"
                 onClick={() => run("simulate-recover")}
                 disabled={busy !== null}
-                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-white/10 disabled:opacity-50"
+                className="rounded-none border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-white/10 disabled:opacity-50"
               >
                 {busy === "simulate-recover" ? "Simulating…" : "Simulate RECOVERED"}
               </button>
             </div>
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+          <div className="rounded-none border border-white/10 bg-white/5 p-6 backdrop-blur">
             <h2 className="text-base font-semibold text-zinc-100">Result</h2>
-            <pre className="mt-4 overflow-auto rounded-2xl bg-black/60 p-4 text-xs text-zinc-100">
+            <pre className="mt-4 overflow-auto rounded-none bg-black/60 p-4 text-xs text-zinc-100">
               {result || "—"}
             </pre>
           </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Incident, StatusResponse } from "@/lib/types";
 import Link from "next/link";
@@ -135,16 +136,23 @@ export default function Home() {
   return (
     <div className="relative min-h-screen bg-[#050608] text-zinc-100">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-48 left-1/2 h-[520px] w-[920px] -translate-x-1/2 rounded-full bg-emerald-500/10 blur-3xl" />
-        <div className="absolute -top-32 right-[-260px] h-[440px] w-[640px] rounded-full bg-sky-500/10 blur-3xl" />
-        <div className="absolute bottom-[-240px] left-[-260px] h-[520px] w-[720px] rounded-full bg-fuchsia-500/10 blur-3xl" />
+        <div className="absolute -top-48 left-1/2 h-[520px] w-[920px] -translate-x-1/2  bg-emerald-500/10 blur-3xl" />
+        <div className="absolute -top-32 right-[-260px] h-[440px] w-[640px]  bg-sky-500/10 blur-3xl" />
+        <div className="absolute bottom-[-240px] left-[-260px] h-[520px] w-[720px]  bg-fuchsia-500/10 blur-3xl" />
       </div>
 
       <div className="relative mx-auto w-full max-w-5xl px-6 py-12">
         <nav className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-white/5">
-              <div className="h-3.5 w-3.5 rounded-sm bg-gradient-to-br from-emerald-400 to-sky-400" />
+            <div className="grid h-9 w-9 place-items-center border border-white/10 bg-white/5">
+              <Image
+                src="/paveer2.png"
+                alt="Logo"
+                width={60}
+                height={60}
+                className="h-6 w-6 object-contain"
+                priority
+              />
             </div>
             <div className="flex flex-col leading-tight">
               <span className="text-sm font-semibold tracking-wide text-zinc-100">
@@ -176,7 +184,7 @@ export default function Home() {
         </nav>
 
         <header className="mt-12">
-          <div className="rounded-3xl border border-white/10 bg-white/5 px-8 py-10 backdrop-blur">
+          <div className="rounded-none border border-white/10 bg-white/5 px-8 py-10 backdrop-blur">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
               <div className="flex flex-col gap-2">
                 <p className="text-xs font-medium tracking-[0.22em] text-zinc-400">
@@ -185,17 +193,7 @@ export default function Home() {
                 <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
                   Paveer System Health
                 </h1>
-                <p className="text-sm text-zinc-400">
-                  Monitoring{" "}
-                  <a
-                    href={monitoredUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-medium text-zinc-200 underline underline-offset-4 hover:text-zinc-100"
-                  >
-                    {monitoredUrl}
-                  </a>
-                </p>
+
               </div>
 
               <div className="flex flex-col items-start gap-2 sm:items-end">
@@ -231,7 +229,7 @@ export default function Home() {
             <StatCard title="Uptime (24h)" value={uptime24h} detail={`p95: ${p95Latency} • p50: ${p50Latency}`} />
           </section>
 
-          <section className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur">
+          <section className="rounded-none border border-white/10 bg-white/5 backdrop-blur">
             <div className="flex flex-col gap-3 border-b border-white/10 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-col gap-1">
                 <h2 className="text-base font-semibold tracking-tight text-zinc-100">Uptime</h2>
@@ -273,9 +271,9 @@ export default function Home() {
                           type="button"
                           onClick={() => uptimeBar.onSelect(bucket.hour)}
                           aria-label={label}
-                          className={`h-8 w-2.5 rounded-md ${color} opacity-90 transition-[transform,opacity,filter] duration-150 ease-out hover:opacity-100 hover:scale-y-[1.15] hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-white/30`}
+                          className={`h-8 w-2.5 rounded-none ${color} opacity-90 transition-[transform,opacity,filter] duration-150 ease-out hover:opacity-100 hover:scale-y-[1.15] hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-white/30`}
                         />
-                        <div className="pointer-events-none absolute -top-2 left-1/2 z-20 hidden -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-xl border border-white/10 bg-black/80 px-3 py-2 text-xs text-zinc-100 shadow-xl backdrop-blur group-hover:block">
+                        <div className="pointer-events-none absolute -top-2 left-1/2 z-20 hidden -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-none border border-white/10 bg-black/80 px-3 py-2 text-xs text-zinc-100 shadow-xl backdrop-blur group-hover:block">
                           <div className="font-medium">{formatTimestamp(bucket.hour)}</div>
                           <div className="text-zinc-300">
                             {hasData ? bucket.status.toUpperCase() : "NO DATA"}
@@ -314,7 +312,7 @@ export default function Home() {
             </div>
           </section>
 
-          <section id="incidents" className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur">
+          <section id="incidents" className="rounded-none border border-white/10 bg-white/5 backdrop-blur">
             <div className="flex flex-col gap-4 border-b border-white/10 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-col gap-1">
                 <h2 className="text-base font-semibold tracking-tight text-zinc-100">Incident history</h2>
@@ -326,13 +324,13 @@ export default function Home() {
                   value={incidentQuery}
                   onChange={(e) => setIncidentQuery(e.target.value)}
                   placeholder="Search incidents…"
-                  className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:ring-2 focus:ring-white/20 sm:w-56"
+                  className="h-10 w-full rounded-none border border-white/10 bg-white/5 px-3 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:ring-2 focus:ring-white/20 sm:w-56"
                 />
 
                 <select
                   value={incidentStatus}
                   onChange={(e) => setIncidentStatus(e.target.value as typeof incidentStatus)}
-                  className="h-10 rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-white/20"
+                  className="h-10 rounded-none border border-white/10 bg-white/5 px-3 text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-white/20"
                 >
                   <option value="all">All</option>
                   <option value="open">Open</option>
@@ -342,7 +340,7 @@ export default function Home() {
                 <select
                   value={incidentSort}
                   onChange={(e) => setIncidentSort(e.target.value as typeof incidentSort)}
-                  className="h-10 rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-white/20"
+                  className="h-10 rounded-none border border-white/10 bg-white/5 px-3 text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-white/20"
                 >
                   <option value="newest">Newest</option>
                   <option value="oldest">Oldest</option>
@@ -351,14 +349,14 @@ export default function Home() {
                 </select>
 
                 <button
-                  type="button"
-                  onClick={() => {
-                    setRefreshing(true);
-                    fetchStatus();
-                  }}
-                  disabled={loading || refreshing}
-                  className="h-10 rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-medium text-zinc-200 hover:bg-white/10 disabled:opacity-50"
-                >
+                    type="button"
+                    onClick={() => {
+                      setRefreshing(true);
+                      fetchStatus();
+                    }}
+                    disabled={loading || refreshing}
+                    className="h-10 rounded-none border border-white/10 bg-white/5 px-4 text-sm font-medium text-zinc-200 hover:bg-white/10 disabled:opacity-50"
+                  >
                   {refreshing ? "Refreshing..." : "Refresh"}
                 </button>
               </div>
@@ -377,7 +375,7 @@ export default function Home() {
             )}
           </section>
 
-          <section className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur">
+          <section className="rounded-none border border-white/10 bg-white/5 backdrop-blur">
             <div className="flex items-center justify-between gap-4 border-b border-white/10 px-6 py-5">
               <div className="flex flex-col gap-1">
                 <h2 className="text-base font-semibold tracking-tight text-zinc-100">
@@ -447,7 +445,7 @@ export default function Home() {
 
 function StatCard(props: { title: string; value: string; detail: string }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+    <div className="rounded-none border border-white/10 bg-white/5 p-6 backdrop-blur">
       <div className="text-xs font-medium tracking-[0.2em] text-zinc-400">
         {props.title.toUpperCase()}
       </div>

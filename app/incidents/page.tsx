@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Incident, StatusResponse } from "@/lib/types";
@@ -77,8 +78,21 @@ export default function IncidentsPage() {
 
       <div className="relative mx-auto w-full max-w-5xl px-6 py-12">
         <nav className="flex items-center justify-between">
-          <Link href="/" className="text-sm font-medium text-zinc-300 hover:text-zinc-100">
-            ← Back to status
+          <Link
+            href="/"
+            className="flex items-center gap-3 text-sm font-medium text-zinc-300 hover:text-zinc-100"
+          >
+            <div className="grid h-9 w-9 place-items-center border border-white/10 bg-white/5">
+              <Image
+                src="/vercel.png"
+                alt="Logo"
+                width={24}
+                height={24}
+                className="h-6 w-6 object-contain"
+                priority
+              />
+            </div>
+            <span>Back to status</span>
           </Link>
 
           <div className="flex items-center gap-6 text-sm text-zinc-300">
@@ -95,7 +109,7 @@ export default function IncidentsPage() {
         </nav>
 
         <header className="mt-10">
-          <div className="rounded-3xl border border-white/10 bg-white/5 px-8 py-10 backdrop-blur">
+          <div className="rounded-none border border-white/10 bg-white/5 px-8 py-10 backdrop-blur">
             <p className="text-xs font-medium tracking-[0.22em] text-zinc-400">INCIDENT HISTORY</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">All incidents</h1>
             <p className="mt-2 text-sm text-zinc-400">
@@ -113,7 +127,7 @@ export default function IncidentsPage() {
         </header>
 
         <main className="mt-10">
-          <section className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur">
+          <section className="rounded-none border border-white/10 bg-white/5 backdrop-blur">
             <div className="flex flex-col gap-4 border-b border-white/10 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-col gap-1">
                 <h2 className="text-base font-semibold tracking-tight text-zinc-100">Browse</h2>
@@ -127,13 +141,13 @@ export default function IncidentsPage() {
                   value={incidentQuery}
                   onChange={(e) => setIncidentQuery(e.target.value)}
                   placeholder="Search incidents…"
-                  className="h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:ring-2 focus:ring-white/20 sm:w-64"
+                  className="h-10 w-full rounded-none border border-white/10 bg-white/5 px-3 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:ring-2 focus:ring-white/20 sm:w-64"
                 />
 
                 <select
                   value={incidentStatus}
                   onChange={(e) => setIncidentStatus(e.target.value as IncidentStatusFilter)}
-                  className="h-10 rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-white/20"
+                  className="h-10 rounded-none border border-white/10 bg-white/5 px-3 text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-white/20"
                 >
                   <option value="all">All</option>
                   <option value="open">Open</option>
@@ -143,7 +157,7 @@ export default function IncidentsPage() {
                 <select
                   value={incidentSort}
                   onChange={(e) => setIncidentSort(e.target.value as IncidentSort)}
-                  className="h-10 rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-white/20"
+                  className="h-10 rounded-none border border-white/10 bg-white/5 px-3 text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-white/20"
                 >
                   <option value="newest">Newest</option>
                   <option value="oldest">Oldest</option>
@@ -158,7 +172,7 @@ export default function IncidentsPage() {
                     fetchStatus();
                   }}
                   disabled={loading || refreshing}
-                  className="h-10 rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-medium text-zinc-200 hover:bg-white/10 disabled:opacity-50"
+                  className="h-10 rounded-none border border-white/10 bg-white/5 px-4 text-sm font-medium text-zinc-200 hover:bg-white/10 disabled:opacity-50"
                 >
                   {refreshing ? "Refreshing..." : "Refresh"}
                 </button>

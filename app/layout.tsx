@@ -16,6 +16,10 @@ export const metadata: Metadata = {
   title: "Paveer System Health",
   description:
     "Status page monitoring paveer.com with incident history via Betterstack and email alerts on downtime and recovery.",
+  icons: {
+    icon: "/paveer2.png",
+    apple: "/paveer2.png",
+  },
 };
 
 export default function RootLayout({
