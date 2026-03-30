@@ -174,12 +174,44 @@ export async function getMonitorMetadataValue(key: string): Promise<string | nul
 }
 
 export async function getMonitorMetadataValues(key: string): Promise<string[]> {
-  const records = await listMonitorMetadata();
-  const record = records.find((r) => r.key === key);
-  const values = (record?.values ?? [])
-    .map((v) => v.value ?? null)
-    .filter((v): v is string => !!v && v.trim().length > 0);
-  return values;
+  const { monitorId } = requireBetterstackConfig();
+  const perPage = 50;
+
+  for (let page = 1; page <= 10; page += 1) {
+    const url = new URL("https://uptime.betterstack.com/api/v3/metadata");
+    url.searchParams.set("owner_id", monitorId);
+    url.searchParams.set("owner_type", "Monitor");
+    url.searchParams.set("per_page", String(perPage));
+    url.searchParams.set("page", String(page));
+
+    const res = await betterstackFetch(`/api/v3/metadata${url.search}`, { method: "GET" });
+    const json = await parseJson<{
+      data?: Array<{
+        id?: string;
+        attributes?: { key?: string; values?: Array<{ type?: string; value?: string | null }> };
+      }>;
+    }>(res);
+
+    const records = (json.data ?? [])
+      .map((m): BetterstackMetadataRecord | null => {
+        const id = m.id ? String(m.id) : null;
+        const k = m.attributes?.key ? String(m.attributes.key) : null;
+        if (!id || !k) return null;
+        return { id, key: k, values: m.attributes?.values ?? [] };
+      })
+      .filter((x): x is BetterstackMetadataRecord => x !== null);
+
+    const record = records.find((r) => r.key === key);
+    if (record) {
+      return (record.values ?? [])
+        .map((v) => v.value ?? null)
+        .filter((v): v is string => !!v && v.trim().length > 0);
+    }
+
+    if (records.length < perPage) break;
+  }
+
+  return [];
 }
 
 export async function setMonitorMetadataValue(key: string, value: string | null): Promise<void> {
@@ -274,5 +306,107 @@ export async function appendMetadataCheckLogEntry(entry: CheckLogEntry): Promise
   await setMonitorMetadataValues(
     CHECK_LOG_KEY,
     next.map((i) => JSON.stringify(i)),
+  );
+}
+
+type HourlyUptimeEntry = {
+  hour: string;
+  total: number;
+  operational: number;
+  degraded: number;
+  down: number;
+  latencySumMs: number;
+  latencyCount: number;
+};
+
+const HOURLY_UPTIME_KEY = "status_page_hourly_uptime";
+
+export async function listMetadataHourlyUptime(): Promise<HourlyUptimeEntry[]> {
+  const values = await getMonitorMetadataValues(HOURLY_UPTIME_KEY);
+  return values
+    .map((raw): HourlyUptimeEntry | null => {
+      try {
+        const parsed = JSON.parse(raw) as HourlyUptimeEntry;
+        if (!parsed?.hour) return null;
+        return {
+          hour: String(parsed.hour),
+          total: Number(parsed.total ?? 0),
+          operational: Number(parsed.operational ?? 0),
+          degraded: Number(parsed.degraded ?? 0),
+          down: Number(parsed.down ?? 0),
+          latencySumMs: Number(parsed.latencySumMs ?? 0),
+          latencyCount: Number(parsed.latencyCount ?? 0),
+        };
+      } catch {
+        return null;
+      }
+    })
+    .filter((x): x is HourlyUptimeEntry => x !== null)
+    .sort((a, b) => a.hour.localeCompare(b.hour));
+}
+
+export async function recordMetadataHourlyCheck(entry: CheckLogEntry): Promise<void> {
+  const date = new Date(entry.at);
+  if (Number.isNaN(date.getTime())) return;
+  const normalized = new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      date.getUTCHours(),
+      0,
+      0,
+      0,
+    ),
+  );
+  const hour = normalized.toISOString().slice(0, 13) + ":00:00.000Z";
+
+  const existing = await listMetadataHourlyUptime();
+  const idx = existing.findIndex((e) => e.hour === hour);
+
+  const next = [...existing];
+  const current: HourlyUptimeEntry =
+    idx === -1
+      ? {
+          hour,
+          total: 0,
+          operational: 0,
+          degraded: 0,
+          down: 0,
+          latencySumMs: 0,
+          latencyCount: 0,
+        }
+      : next[idx]!;
+
+  const updated: HourlyUptimeEntry = {
+    ...current,
+    total: current.total + 1,
+    operational: current.operational + (entry.status === "operational" ? 1 : 0),
+    degraded: current.degraded + (entry.status === "degraded" ? 1 : 0),
+    down: current.down + (entry.status === "down" ? 1 : 0),
+    latencySumMs:
+      current.latencySumMs +
+      (entry.latencyMs != null && Number.isFinite(entry.latencyMs) ? entry.latencyMs : 0),
+    latencyCount:
+      current.latencyCount + (entry.latencyMs != null && Number.isFinite(entry.latencyMs) ? 1 : 0),
+  };
+
+  if (idx === -1) {
+    next.push(updated);
+  } else {
+    next[idx] = updated;
+  }
+
+  const cutoff = new Date(normalized.getTime() - 26 * 60 * 60 * 1000);
+  const cutoffHour = cutoff.toISOString().slice(0, 13) + ":00:00.000Z";
+
+  const trimmed = next
+    .filter((e) => e.hour >= cutoffHour)
+    .sort((a, b) => a.hour.localeCompare(b.hour))
+    .slice(-60);
+
+  await setMonitorMetadataValues(
+    HOURLY_UPTIME_KEY,
+    trimmed.map((i) => JSON.stringify(i)),
   );
 }

@@ -50,6 +50,12 @@ export type StatusResponse = {
     status: SystemStatus;
     latencyMs: number | null;
   }>;
+  hourlyUptime?: Array<{
+    hour: string;
+    status: SystemStatus;
+    uptimePercent: number | null;
+    totalChecks: number;
+  }>;
   stats?: {
     uptime24hPercent: number | null;
     p50LatencyMs: number | null;

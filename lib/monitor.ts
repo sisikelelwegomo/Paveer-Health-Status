@@ -18,6 +18,7 @@ import {
   getMonitorMetadataValue,
   setMonitorMetadataValue,
   appendMetadataCheckLogEntry,
+  recordMetadataHourlyCheck,
   upsertMetadataIncidentLog,
 } from "@/lib/betterstack";
 import {
@@ -110,6 +111,11 @@ export async function runMonitorOnce(): Promise<MonitorRunResult> {
     }
 
     await appendMetadataCheckLogEntry({
+      at: nowIso,
+      status,
+      latencyMs: measuredLatencyMs,
+    });
+    await recordMetadataHourlyCheck({
       at: nowIso,
       status,
       latencyMs: measuredLatencyMs,
@@ -277,6 +283,7 @@ export async function simulateRecover(): Promise<void> {
 
   const state = getState();
   const now = new Date();
+
   const start =
     state.downtimeStartedAt != null
       ? new Date(state.downtimeStartedAt)

@@ -8,6 +8,7 @@ import {
   getMonitorMetadataValue,
   listIncidentsLast24Hours as listBetterstackIncidentsLast24Hours,
   listMetadataCheckLog,
+  listMetadataHourlyUptime,
   listMetadataIncidentLog,
 } from "@/lib/betterstack";
 
@@ -20,39 +21,20 @@ function percentile(sorted: number[], p: number): number | null {
   return sorted[Math.max(0, Math.min(sorted.length - 1, idx))] ?? null;
 }
 
-function computeUptime24hPercent(incidents: Incident[]): number | null {
-  const now = Date.now();
-  const windowStart = now - 24 * 60 * 60 * 1000;
+function computeUptimePercentFromBuckets(buckets: Array<{ total: number; down: number }>): number | null {
+  const total = buckets.reduce((sum, d) => sum + (Number.isFinite(d.total) ? d.total : 0), 0);
+  if (total <= 0) return null;
+  const down = buckets.reduce((sum, d) => sum + (Number.isFinite(d.down) ? d.down : 0), 0);
+  const up = Math.max(0, total - down);
+  return Math.round((up / total) * 10000) / 100;
+}
 
-  const intervals = incidents
-    .map((i) => {
-      const start = new Date(i.createdAt).getTime();
-      const end = i.resolvedAt ? new Date(i.resolvedAt).getTime() : now;
-      if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
-      const clampedStart = Math.max(start, windowStart);
-      const clampedEnd = Math.min(end, now);
-      if (clampedEnd <= clampedStart) return null;
-      return { start: clampedStart, end: clampedEnd };
-    })
-    .filter((x): x is { start: number; end: number } => x !== null)
-    .sort((a, b) => a.start - b.start);
-
-  if (intervals.length === 0) return 100;
-
-  const merged: Array<{ start: number; end: number }> = [];
-  for (const interval of intervals) {
-    const last = merged[merged.length - 1];
-    if (!last || interval.start > last.end) {
-      merged.push(interval);
-    } else {
-      last.end = Math.max(last.end, interval.end);
-    }
-  }
-
-  const downtimeMs = merged.reduce((sum, i) => sum + (i.end - i.start), 0);
-  const totalMs = 24 * 60 * 60 * 1000;
-  const uptime = Math.max(0, Math.min(1, 1 - downtimeMs / totalMs));
-  return Math.round(uptime * 10000) / 100;
+function computeUptimePercentFromChecks(
+  checks: Array<{ status: SystemStatus }>,
+): number | null {
+  if (checks.length === 0) return null;
+  const up = checks.reduce((sum, c) => sum + (c.status === "down" ? 0 : 1), 0);
+  return Math.round((up / checks.length) * 10000) / 100;
 }
 
 function mapBetterstackStatus(status: string | null): SystemStatus {
@@ -112,6 +94,7 @@ export async function GET() {
     const checkLog = await listMetadataCheckLog();
     const recentChecks = checkLog.slice(0, 90);
     const lastLatencyMs = recentChecks[0]?.latencyMs ?? null;
+    const lastCheckedAt = monitor.lastCheckedAt ?? recentChecks[0]?.at ?? null;
     const latencyValues = recentChecks
       .map((c) => c.latencyMs)
       .filter((v): v is number => v != null && Number.isFinite(v))
@@ -119,12 +102,53 @@ export async function GET() {
 
     const p50LatencyMs = percentile(latencyValues, 0.5);
     const p95LatencyMs = percentile(latencyValues, 0.95);
-    const uptime24hPercent = computeUptime24hPercent(incidents);
+
+    const hourly = await listMetadataHourlyUptime();
+    const now = new Date();
+    const currentHour = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        now.getUTCHours(),
+        0,
+        0,
+        0,
+      ),
+    );
+
+    const hours: string[] = [];
+    for (let i = 23; i >= 0; i -= 1) {
+      const d = new Date(currentHour.getTime() - i * 60 * 60 * 1000);
+      hours.push(d.toISOString().slice(0, 13) + ":00:00.000Z");
+    }
+
+    const hourlyUptime = hours.map((hour) => {
+      const entry = hourly.find((e) => e.hour === hour) ?? null;
+      const total = entry?.total ?? 0;
+      const down = entry?.down ?? 0;
+      const degraded = entry?.degraded ?? 0;
+
+      const uptimePercent = total > 0 ? Math.round(((total - down) / total) * 10000) / 100 : null;
+      const status: SystemStatus =
+        down > 0 ? "down" : degraded > 0 ? "degraded" : total > 0 ? "operational" : "operational";
+
+      return { hour, status, uptimePercent, totalChecks: total };
+    });
+
+    const uptime24hPercent = computeUptimePercentFromBuckets(
+      hours.map((hour) => {
+        const entry = hourly.find((e) => e.hour === hour) ?? null;
+        return { total: entry?.total ?? 0, down: entry?.down ?? 0 };
+      }),
+    );
+    const uptime24hPercentFallback =
+      uptime24hPercent ?? computeUptimePercentFromChecks(recentChecks.map((c) => ({ status: c.status })));
 
     const response: StatusResponse = {
       status,
       monitoredUrl: monitor.url ?? getState().monitoredUrl,
-      lastCheckedAt: monitor.lastCheckedAt,
+      lastCheckedAt,
       lastStateChangeAt: lastStateChangeAt ?? null,
       downtimeStartedAt: status === "down" ? (lastDownAt ?? null) : null,
       lastLatencyMs,
@@ -132,8 +156,9 @@ export async function GET() {
       activeIncidentIoId: null,
       incidents,
       recentChecks,
+      hourlyUptime,
       stats: {
-        uptime24hPercent,
+        uptime24hPercent: uptime24hPercentFallback,
         p50LatencyMs,
         p95LatencyMs,
         checkCount: recentChecks.length,

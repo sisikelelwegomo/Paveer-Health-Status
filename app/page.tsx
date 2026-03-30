@@ -13,6 +13,7 @@ export default function Home() {
   const [incidentStatus, setIncidentStatus] = useState<"all" | "open" | "resolved">("all");
   const [incidentSort, setIncidentSort] = useState<"newest" | "oldest" | "severity" | "duration">("newest");
   const [incidentDay, setIncidentDay] = useState<string | null>(null);
+  const [incidentHour, setIncidentHour] = useState<string | null>(null);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -71,6 +72,11 @@ export default function Home() {
       if (Number.isNaN(d.getTime())) return "";
       return d.toISOString().slice(0, 10);
     };
+    const hourOf = (iso: string) => {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return "";
+      return d.toISOString().slice(0, 13) + ":00:00.000Z";
+    };
     const durationMs = (i: Incident) => {
       const start = new Date(i.createdAt).getTime();
       const end = new Date(i.resolvedAt ?? new Date().toISOString()).getTime();
@@ -83,6 +89,7 @@ export default function Home() {
     const filtered = incidents.filter((i) => {
       if (incidentStatus !== "all" && i.status !== incidentStatus) return false;
       if (incidentDay && dayOf(i.createdAt) !== incidentDay) return false;
+      if (incidentHour && hourOf(i.createdAt) !== incidentHour) return false;
       if (!q) return true;
       const hay = [i.title, i.summary, i.cause, i.resolution].filter(Boolean).join(" ").toLowerCase();
       return hay.includes(q);
@@ -96,26 +103,20 @@ export default function Home() {
     });
 
     return sorted;
-  }, [incidents, incidentDay, incidentQuery, incidentSort, incidentStatus]);
+  }, [incidents, incidentDay, incidentHour, incidentQuery, incidentSort, incidentStatus]);
 
   const uptimeBar = useMemo(() => {
-    const dayOf = (iso: string) => {
-      const d = new Date(iso);
-      if (Number.isNaN(d.getTime())) return null;
-      return d.toISOString().slice(0, 10);
-    };
-
+    const bars = data?.hourlyUptime ?? [];
     return {
-      bars: [...recentChecks].slice(0, 90).reverse(),
-      onSelect: (iso: string) => {
-        const day = dayOf(iso);
-        if (!day) return;
-        setIncidentDay(day);
+      bars,
+      onSelect: (hour: string) => {
+        setIncidentHour(hour);
+        setIncidentDay(hour.slice(0, 10));
         const el = document.getElementById("incidents");
         el?.scrollIntoView({ behavior: "smooth", block: "start" });
       },
     };
-  }, [recentChecks]);
+  }, [data?.hourlyUptime]);
 
   const downtime = useMemo(() => {
     if (status !== "down") return null;
@@ -237,7 +238,7 @@ export default function Home() {
                 <p className="text-xs text-zinc-400">
                   Uptime (24h): <span className="font-mono text-zinc-200">{uptime24h}</span> • p95: <span className="font-mono text-zinc-200">{p95Latency}</span> • p50: <span className="font-mono text-zinc-200">{p50Latency}</span>
                 </p>
-                <p className="text-xs text-zinc-500">Last {uptimeBar.bars.length} checks • click a bar to filter incidents by day</p>
+                <p className="text-xs text-zinc-500">24 hours • click an hour to filter incidents</p>
               </div>
               <a href="#incidents" className="text-sm text-zinc-300 hover:text-zinc-100">
                 View incidents
@@ -250,33 +251,39 @@ export default function Home() {
               ) : uptimeBar.bars.length === 0 ? (
                 <div className="text-sm text-zinc-400">No check history yet.</div>
               ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {uptimeBar.bars.map((check) => {
+                <div className="flex flex-wrap gap-2">
+                  {uptimeBar.bars.map((bucket) => {
+                    const hasData = bucket.totalChecks > 0;
                     const color =
-                      check.status === "operational"
-                        ? "bg-emerald-500"
-                        : check.status === "degraded"
-                          ? "bg-amber-500"
-                          : "bg-rose-500";
+                      !hasData
+                        ? "bg-white/10"
+                        : bucket.status === "operational"
+                          ? "bg-emerald-500"
+                          : bucket.status === "degraded"
+                            ? "bg-amber-500"
+                            : "bg-rose-500";
 
-                    const label = `${check.status.toUpperCase()} • ${formatTimestamp(check.at)}${
-                      check.latencyMs != null ? ` • ${Math.round(check.latencyMs)} ms` : ""
-                    }`.replace("$", "");
+                    const label = `${formatTimestamp(bucket.hour)} • ${
+                      hasData ? bucket.status.toUpperCase() : "NO DATA"
+                    } • ${bucket.uptimePercent != null ? `${bucket.uptimePercent.toFixed(2)}%` : "—"} • ${bucket.totalChecks} checks`;
 
                     return (
-                      <div key={check.at} className="group relative">
+                      <div key={bucket.hour} className="group relative">
                         <button
                           type="button"
-                          onClick={() => uptimeBar.onSelect(check.at)}
+                          onClick={() => uptimeBar.onSelect(bucket.hour)}
                           aria-label={label}
-                          className={`h-7 w-1.5 rounded-sm ${color} opacity-90 transition-[transform,opacity,width] duration-150 ease-out hover:w-2 hover:opacity-100 hover:scale-y-[1.15] focus:outline-none focus:ring-2 focus:ring-white/30`}
+                          className={`h-8 w-2.5 rounded-md ${color} opacity-90 transition-[transform,opacity,filter] duration-150 ease-out hover:opacity-100 hover:scale-y-[1.15] hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-white/30`}
                         />
                         <div className="pointer-events-none absolute -top-2 left-1/2 z-20 hidden -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-xl border border-white/10 bg-black/80 px-3 py-2 text-xs text-zinc-100 shadow-xl backdrop-blur group-hover:block">
-                          <div className="font-medium">{check.status.toUpperCase()}</div>
-                          <div className="text-zinc-300">{formatTimestamp(check.at)}</div>
+                          <div className="font-medium">{formatTimestamp(bucket.hour)}</div>
                           <div className="text-zinc-300">
-                            {check.latencyMs != null ? `${Math.round(check.latencyMs)} ms` : "—"}
+                            {hasData ? bucket.status.toUpperCase() : "NO DATA"}
                           </div>
+                          <div className="text-zinc-300">
+                            {bucket.uptimePercent != null ? `${bucket.uptimePercent.toFixed(2)}% uptime` : "—"}
+                          </div>
+                          <div className="text-zinc-300">{bucket.totalChecks} checks</div>
                         </div>
                       </div>
                     );
@@ -284,14 +291,20 @@ export default function Home() {
                 </div>
               )}
 
-              {incidentDay ? (
+              {incidentHour || incidentDay ? (
                 <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-zinc-300">
                   <span className="rounded-full bg-white/5 px-3 py-1">
-                    Filtering incidents for <span className="font-mono">{incidentDay}</span>
+                    Filtering incidents for{" "}
+                    <span className="font-mono">
+                      {incidentHour ? formatTimestamp(incidentHour) : incidentDay}
+                    </span>
                   </span>
                   <button
                     type="button"
-                    onClick={() => setIncidentDay(null)}
+                    onClick={() => {
+                      setIncidentDay(null);
+                      setIncidentHour(null);
+                    }}
                     className="rounded-full border border-white/10 bg-white/5 px-3 py-1 hover:bg-white/10"
                   >
                     Clear
