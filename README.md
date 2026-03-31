@@ -232,10 +232,6 @@ npm run simulate:recover
 
 ## Deployment
 
-The status page is deployed to Vercel and publicly accessible at:
-
-**https://status.sisikelelwegomo.com** *(fill in)*
-
 ### Deployment checklist
 
 - [ ] Environment variables set in Vercel (not committed to the repo)
@@ -254,17 +250,6 @@ Set all environment variables in the Vercel dashboard under **Settings → Envir
 
 ---
 
-## Deliverables
-
-| Item | Link |
-|---|---|
-| Live status page | *(fill in)* |
-| Public GitHub repository | https://github.com/sisikelelwegomo/Paveer-System-Health |
-| Incident log evidence | *(fill in — screenshot or Betterstack link)* |
-| DOWN email example | *(fill in — screenshot with timestamp)* |
-| RECOVERED email example | *(fill in — screenshot with timestamp)* |
-
----
 
 ## Betterstack API integration
 
