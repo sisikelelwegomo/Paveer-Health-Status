@@ -147,22 +147,36 @@ export default function IncidentsPage() {
                 <select
                   value={incidentStatus}
                   onChange={(e) => setIncidentStatus(e.target.value as IncidentStatusFilter)}
-                  className="h-10 rounded-none border border-white/10 bg-white/5 px-3 text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-white/20"
+                  className="h-10 rounded-none border border-white/10 bg-zinc-700 px-3 text-sm text-white outline-none focus:ring-2 focus:ring-white/20"
                 >
-                  <option value="all">All</option>
-                  <option value="open">Open</option>
-                  <option value="resolved">Resolved</option>
+                  <option value="all" className="bg-zinc-700 text-white">
+                    All
+                  </option>
+                  <option value="open" className="bg-zinc-700 text-white">
+                    Open
+                  </option>
+                  <option value="resolved" className="bg-zinc-700 text-white">
+                    Resolved
+                  </option>
                 </select>
 
                 <select
                   value={incidentSort}
                   onChange={(e) => setIncidentSort(e.target.value as IncidentSort)}
-                  className="h-10 rounded-none border border-white/10 bg-white/5 px-3 text-sm text-zinc-100 outline-none focus:ring-2 focus:ring-white/20"
+                  className="h-10 rounded-none border border-white/10 bg-zinc-700 px-3 text-sm text-white outline-none focus:ring-2 focus:ring-white/20"
                 >
-                  <option value="newest">Newest</option>
-                  <option value="oldest">Oldest</option>
-                  <option value="severity">Severity</option>
-                  <option value="duration">Duration</option>
+                  <option value="newest" className="bg-zinc-700 text-white">
+                    Newest
+                  </option>
+                  <option value="oldest" className="bg-zinc-700 text-white">
+                    Oldest
+                  </option>
+                  <option value="severity" className="bg-zinc-700 text-white">
+                    Severity
+                  </option>
+                  <option value="duration" className="bg-zinc-700 text-white">
+                    Duration
+                  </option>
                 </select>
 
                 <button
